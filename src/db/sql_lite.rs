@@ -123,7 +123,16 @@ impl TouristDb for SqliteDb {
     }
 
     async fn insert_rating(&self, point_id: i32, rate: i32) -> Result<(), Error> {
-        todo!()
+        let query = r#"
+        INSERT INTO rates (point_id, rate)
+        VALUES (?, ?)
+    "#;
+        sqlx::query(query)
+            .bind(point_id)
+            .bind(rate)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
     }
 
     async fn update_average_rating(&self, point_id: i32) -> Result<(), Error> {
