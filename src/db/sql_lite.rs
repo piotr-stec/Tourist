@@ -110,7 +110,16 @@ impl TouristDb for SqliteDb {
     }
 
     async fn get_pin_by_id(&self, id: i32) -> Result<super::Pin, Error> {
-        todo!()
+        let query = r#"
+        SELECT id, type, title, description, x, y, average_rate
+        FROM pins
+        WHERE id = ?
+    "#;
+        let pin = sqlx::query_as::<_, Pin>(query)
+            .bind(id)
+            .fetch_one(&self.pool)
+            .await?;
+        Ok(pin)
     }
 
     async fn insert_rating(&self, point_id: i32, rate: i32) -> Result<(), Error> {
