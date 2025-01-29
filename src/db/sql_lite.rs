@@ -136,7 +136,30 @@ impl TouristDb for SqliteDb {
     }
 
     async fn update_average_rating(&self, point_id: i32) -> Result<(), Error> {
-        todo!()
+        let query = r#"
+        SELECT AVG(rate) as average_rate
+        FROM rates
+        WHERE point_id = ?
+    "#;
+        let average_rate: Option<f64> = sqlx::query_scalar(query)
+            .bind(point_id)
+            .fetch_one(&self.pool)
+            .await?;
+
+        if let Some(avg_rate) = average_rate {
+            let update_query = r#"
+            UPDATE pins
+            SET average_rate = ?
+            WHERE id = ?
+        "#;
+            sqlx::query(update_query)
+                .bind(avg_rate)
+                .bind(point_id)
+                .execute(&self.pool)
+                .await?;
+        }
+
+        Ok(())
     }
 
     async fn delete_pin(&self, id: i32) -> Result<(), Error> {
