@@ -163,6 +163,11 @@ impl TouristDb for SqliteDb {
     }
 
     async fn delete_pin(&self, id: i32) -> Result<(), Error> {
-        todo!()
+        let query = r#"
+        DELETE FROM pins
+        WHERE id = ?
+    "#;
+        sqlx::query(query).bind(id).execute(&self.pool).await?;
+        Ok(())
     }
 }
