@@ -33,14 +33,13 @@ pub trait TouristDb {
     async fn delete_pin(&self, id: i32) -> Result<(), Error>;
 }
 
-
 #[derive(Debug, Serialize, Deserialize, FromRow)]
 pub struct Pin {
-    pub id: i32,             
-    pub r#type: String,      
-    pub title: String,       
-    pub description: String, 
-    pub x: f64,              
-    pub y: f64,              
-    pub average_rate: f64,   
+    pub id: i32,
+    pub r#type: String,
+    pub title: String,
+    pub description: String,
+    pub x: f64,
+    pub y: f64,
+    pub average_rate: f64,
 }
