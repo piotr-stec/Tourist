@@ -7,6 +7,8 @@ use tracing::trace;
 
 use crate::errors::Error;
 
+use super::TouristDb;
+
 #[derive(Clone)]
 pub struct SqliteDb {
     pub(crate) pool: Pool<Sqlite>,
@@ -72,3 +74,47 @@ impl SqliteDb {
     }
 }
 
+impl TouristDb for SqliteDb {
+    async fn insert_pin(
+        &self,
+        pin_type: String,
+        title: String,
+        description: String,
+        x: f64,
+        y: f64,
+    ) -> Result<(), Error> {
+        let query = r#"
+            INSERT INTO pins (type, title, description, x, y, average_rate)
+            VALUES (?, ?, ?, ?, ?, 0)
+        "#;
+        sqlx::query(query)
+            .bind(pin_type)
+            .bind(title)
+            .bind(description)
+            .bind(x)
+            .bind(y)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+    
+    async fn get_all_pins(&self) -> Result<Vec<super::Pin>, Error> {
+        todo!()
+    }
+    
+    async fn get_pin_by_id(&self, id: i32) -> Result<super::Pin, Error> {
+        todo!()
+    }
+    
+    async fn insert_rating(&self, point_id: i32, rate: i32) -> Result<(), Error> {
+        todo!()
+    }
+    
+    async fn update_average_rating(&self, point_id: i32) -> Result<(), Error> {
+        todo!()
+    }
+    
+    async fn delete_pin(&self, id: i32) -> Result<(), Error> {
+        todo!()
+    }
+}
