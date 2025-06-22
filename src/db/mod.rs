@@ -23,11 +23,17 @@ pub trait TouristDb {
     /// Retrieves a single pin by ID
     async fn get_pin_by_id(&self, id: i32) -> Result<Pin, Error>;
 
-    /// Inserts a new rating for a pin
-    async fn insert_rating(&self, point_id: i32, rate: i32) -> Result<(), Error>;
+    /// Inserts a new comment for a pin
+    async fn insert_comment(
+        &self,
+        pin_id: i32,
+        date: String,
+        author: String,
+        content: String,
+    ) -> Result<(), Error>;
 
-    /// Updates the average rating of a pin
-    async fn update_average_rating(&self, point_id: i32) -> Result<(), Error>;
+    /// Inserts a new comment for a pin
+    async fn get_pin_comments(&self, pin_id: i32) -> Result<Vec<Comment>, Error>;
 
     /// Deletes a pin by ID (optional, in case you need deletion functionality)
     async fn delete_pin(&self, id: i32) -> Result<(), Error>;
@@ -41,5 +47,14 @@ pub struct Pin {
     pub description: String,
     pub x: f64,
     pub y: f64,
-    pub average_rate: f64,
+    pub comments_count: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize, FromRow)]
+pub struct Comment {
+    pub id: i32,
+    pub pin_id: i32,
+    pub date: String,
+    pub author: String,
+    pub content: String,
 }

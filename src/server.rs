@@ -1,14 +1,14 @@
 use axum::{
+    Json, Router,
     extract::{Path, State},
     http::StatusCode,
     routing::{delete, get, post},
-    Json, Router,
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::db::sql_lite::SqliteDb;
 use crate::db::TouristDb;
+use crate::db::sql_lite::SqliteDb;
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
 
@@ -27,9 +27,20 @@ pub struct AddPinRequest {
 }
 
 #[derive(Deserialize)]
-pub struct AddRatingRequest {
-    pub point_id: i32,
-    pub rate: i32,
+pub struct AddCommentRequest {
+    pub pin_id: i32,
+    pub date: String,
+    pub author: String,
+    pub content: String,
+}
+
+#[derive(Serialize)]
+pub struct CommentResponse {
+    pub id: i32,
+    pub pin_id: i32,
+    pub date: String,
+    pub author: String,
+    pub content: String,
 }
 
 #[derive(Serialize)]
@@ -40,7 +51,7 @@ pub struct PinResponse {
     pub description: String,
     pub x: f64,
     pub y: f64,
-    pub average_rate: f64,
+    pub comments_count: u64,
 }
 
 async fn ok_handler() -> &'static str {
@@ -53,11 +64,12 @@ pub fn create_router(state: AppState) -> Router {
     // Build the router
     Router::new()
         .route("/", get(ok_handler))
-        .route("/add_pin", post(add_pin))
-        .route("/get_pins", get(get_pins))
-        .route("/get_pin/{id}", get(get_pin))
-        .route("/add_rate", post(add_rate))
+        .route("/add_pin", post(add_pin)) // zostaje komentarze jako 0
+        .route("/get_pins", get(get_pins)) // id typ tytuł opis coordynaty liczba komentarzy
+        .route("/get_pin/{id}", get(get_pin)) // get pin
         .route("/delete_pin/{id}", delete(delete_pin))
+        .route("/add_comment/{id}", post(add_comment))
+        .route("/get_comments/{id}", get(get_comments))
         .with_state(state)
         .layer(ServiceBuilder::new().layer(cors))
 }
@@ -81,6 +93,48 @@ async fn add_pin(
     Ok(Json("Pin added successfully.".to_string()))
 }
 
+async fn add_comment(
+    State(state): State<AppState>,
+    Json(payload): Json<AddCommentRequest>,
+) -> Result<Json<String>, (StatusCode, String)> {
+    state
+        .db
+        .insert_comment(
+            payload.pin_id,
+            payload.date,
+            payload.author,
+            payload.content,
+        )
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json("Pin added successfully.".to_string()))
+}
+
+async fn get_comments(
+    State(state): State<AppState>,
+    Path(id): Path<i32>,
+) -> Result<Json<Vec<CommentResponse>>, (StatusCode, String)> {
+    let comments = state
+        .db
+        .get_pin_comments(id)
+        .await
+        .map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+
+    let response: Vec<CommentResponse> = comments
+        .into_iter()
+        .map(|comment| CommentResponse {
+            id: comment.id,
+            pin_id: comment.pin_id,
+            date: comment.date,
+            author: comment.author,
+            content: comment.content,
+        })
+        .collect();
+
+    Ok(Json(response))
+}
+
 async fn get_pins(
     State(state): State<AppState>,
 ) -> Result<Json<Vec<PinResponse>>, (StatusCode, String)> {
@@ -99,7 +153,7 @@ async fn get_pins(
             description: pin.description,
             x: pin.x,
             y: pin.y,
-            average_rate: pin.average_rate,
+            comments_count: pin.comments_count,
         })
         .collect();
 
@@ -123,29 +177,10 @@ async fn get_pin(
         description: pin.description,
         x: pin.x,
         y: pin.y,
-        average_rate: pin.average_rate,
+        comments_count: pin.comments_count,
     };
 
     Ok(Json(response))
-}
-
-async fn add_rate(
-    State(state): State<AppState>,
-    Json(payload): Json<AddRatingRequest>,
-) -> Result<Json<String>, (StatusCode, String)> {
-    state
-        .db
-        .insert_rating(payload.point_id, payload.rate)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    state
-        .db
-        .update_average_rating(payload.point_id)
-        .await
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-
-    Ok(Json("Rating added successfully.".to_string()))
 }
 
 pub async fn delete_pin(

@@ -2,9 +2,10 @@ use std::fs;
 use std::path::Path;
 
 use sqlx::sqlite::SqlitePoolOptions;
-use sqlx::{query, Pool, Sqlite};
+use sqlx::{Pool, Sqlite, query};
 use tracing::trace;
 
+use crate::db::Comment;
 use crate::errors::Error;
 
 use super::{Pin, TouristDb};
@@ -35,7 +36,7 @@ impl SqliteDb {
 
         if !table_exists {
             Self::create_pins_table(&pool).await?;
-            Self::create_rates_table(&pool).await?;
+            Self::create_comments_table(&pool).await?;
         } else {
             trace!("Table 'pins' with correct structure found.");
         }
@@ -51,7 +52,7 @@ impl SqliteDb {
                 description TEXT NOT NULL,
                 x REAL NOT NULL CHECK(x BETWEEN -180.0 AND 180.0),
                 y REAL NOT NULL CHECK(y BETWEEN -90.0 AND 90.0),
-                average_rate REAL DEFAULT 0
+                comments_count REAL DEFAULT 0
             );",
         )
         .execute(pool)
@@ -59,13 +60,15 @@ impl SqliteDb {
         Ok(())
     }
 
-    pub async fn create_rates_table(pool: &Pool<Sqlite>) -> Result<(), Error> {
+    pub async fn create_comments_table(pool: &Pool<Sqlite>) -> Result<(), Error> {
         query(
-            "CREATE TABLE rates (
+            "CREATE TABLE comments (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                point_id INTEGER NOT NULL,
-                rate INTEGER NOT NULL CHECK(rate BETWEEN 1 AND 5),
-                FOREIGN KEY (point_id) REFERENCES pins (id) ON DELETE CASCADE
+                pin_id INTEGER NOT NULL,
+                date TEXT NOT NULL,
+                author TEXT NOT NULL,
+                content TEXT NOT NULL,
+                FOREIGN KEY (pin_id) REFERENCES pins (id) ON DELETE CASCADE
             );",
         )
         .execute(pool)
@@ -84,7 +87,7 @@ impl TouristDb for SqliteDb {
         y: f64,
     ) -> Result<(), Error> {
         let query = r#"
-            INSERT INTO pins (type, title, description, x, y, average_rate)
+            INSERT INTO pins (type, title, description, x, y, comments_count)
             VALUES (?, ?, ?, ?, ?, 0)
         "#;
         sqlx::query(query)
@@ -100,7 +103,7 @@ impl TouristDb for SqliteDb {
 
     async fn get_all_pins(&self) -> Result<Vec<super::Pin>, Error> {
         let query = r#"
-        SELECT id, type, title, description, x, y, average_rate
+        SELECT id, type, title, description, x, y, comments_count
         FROM pins
     "#;
         let pins = sqlx::query_as::<_, Pin>(query)
@@ -111,7 +114,7 @@ impl TouristDb for SqliteDb {
 
     async fn get_pin_by_id(&self, id: i32) -> Result<super::Pin, Error> {
         let query = r#"
-        SELECT id, type, title, description, x, y, average_rate
+        SELECT id, type, title, description, x, y, comments_count
         FROM pins
         WHERE id = ?
     "#;
@@ -122,46 +125,6 @@ impl TouristDb for SqliteDb {
         Ok(pin)
     }
 
-    async fn insert_rating(&self, point_id: i32, rate: i32) -> Result<(), Error> {
-        let query = r#"
-        INSERT INTO rates (point_id, rate)
-        VALUES (?, ?)
-    "#;
-        sqlx::query(query)
-            .bind(point_id)
-            .bind(rate)
-            .execute(&self.pool)
-            .await?;
-        Ok(())
-    }
-
-    async fn update_average_rating(&self, point_id: i32) -> Result<(), Error> {
-        let query = r#"
-        SELECT AVG(rate) as average_rate
-        FROM rates
-        WHERE point_id = ?
-    "#;
-        let average_rate: Option<f64> = sqlx::query_scalar(query)
-            .bind(point_id)
-            .fetch_one(&self.pool)
-            .await?;
-
-        if let Some(avg_rate) = average_rate {
-            let update_query = r#"
-            UPDATE pins
-            SET average_rate = ?
-            WHERE id = ?
-        "#;
-            sqlx::query(update_query)
-                .bind(avg_rate)
-                .bind(point_id)
-                .execute(&self.pool)
-                .await?;
-        }
-
-        Ok(())
-    }
-
     async fn delete_pin(&self, id: i32) -> Result<(), Error> {
         let query = r#"
         DELETE FROM pins
@@ -169,5 +132,44 @@ impl TouristDb for SqliteDb {
     "#;
         sqlx::query(query).bind(id).execute(&self.pool).await?;
         Ok(())
+    }
+
+    async fn insert_comment(
+        &self,
+        pin_id: i32,
+        date: String,
+        author: String,
+        content: String,
+    ) -> Result<(), Error> {
+        let query = r#"
+            INSERT INTO comments (pin_id, date, author, content)
+            VALUES (?, ?, ?, ?)
+        "#;
+
+        sqlx::query(query)
+            .bind(pin_id)
+            .bind(date)
+            .bind(author)
+            .bind(content)
+            .execute(&self.pool)
+            .await?;
+
+        Ok(())
+    }
+
+    async fn get_pin_comments(&self, pin_id: i32) -> Result<Vec<Comment>, Error> {
+        let query = r#"
+            SELECT id, pin_id, date, author, content
+            FROM comments
+            WHERE pin_id = ?
+            ORDER BY id ASC
+        "#;
+
+        let comments = sqlx::query_as::<_, Comment>(query)
+            .bind(pin_id)
+            .fetch_all(&self.pool)
+            .await?;
+
+        Ok(comments)
     }
 }
