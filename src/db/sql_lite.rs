@@ -146,7 +146,6 @@ impl TouristDb for SqliteDb {
             VALUES (?, ?, ?, ?)
         "#;
 
-        trace!("Inserting comment.");
 
         sqlx::query(query)
             .bind(pin_id)
@@ -159,6 +158,7 @@ impl TouristDb for SqliteDb {
         Ok(())
     }
 
+
     async fn get_pin_comments(&self, pin_id: i32) -> Result<Vec<Comment>, Error> {
         let query = r#"
             SELECT id, pin_id, date, author, content
@@ -166,7 +166,6 @@ impl TouristDb for SqliteDb {
             WHERE pin_id = ?
             ORDER BY id ASC
         "#;
-        trace!("Fetching commments for id {}", pin_id);
         let comments = sqlx::query_as::<_, Comment>(query)
             .bind(pin_id)
             .fetch_all(&self.pool)

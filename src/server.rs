@@ -64,13 +64,13 @@ pub fn create_router(state: AppState) -> Router {
 
     // Build the router
     Router::new()
+        .route("/get_pin/:id", get(get_pin))
+        .route("/delete_pin/:id", delete(delete_pin))
+        .route("/get_comments/:id", get(get_comments))
         .route("/", get(ok_handler))
         .route("/add_pin", post(add_pin))
         .route("/get_pins", get(get_pins))
-        .route("/get_pin/{id}", get(get_pin))
-        .route("/delete_pin/{id}", delete(delete_pin))
         .route("/add_comment", post(add_comment))
-        .route("/get_comments/{id}", get(get_comments))
         .with_state(state)
         .layer(ServiceBuilder::new().layer(cors))
 }
