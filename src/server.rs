@@ -6,6 +6,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use tracing::trace;
 
 use crate::db::TouristDb;
 use crate::db::sql_lite::SqliteDb;
@@ -64,11 +65,11 @@ pub fn create_router(state: AppState) -> Router {
     // Build the router
     Router::new()
         .route("/", get(ok_handler))
-        .route("/add_pin", post(add_pin)) // zostaje komentarze jako 0
-        .route("/get_pins", get(get_pins)) // id typ tytuł opis coordynaty liczba komentarzy
-        .route("/get_pin/{id}", get(get_pin)) // get pin
+        .route("/add_pin", post(add_pin))
+        .route("/get_pins", get(get_pins))
+        .route("/get_pin/{id}", get(get_pin))
         .route("/delete_pin/{id}", delete(delete_pin))
-        .route("/add_comment/{id}", post(add_comment))
+        .route("/add_comment", post(add_comment))
         .route("/get_comments/{id}", get(get_comments))
         .with_state(state)
         .layer(ServiceBuilder::new().layer(cors))
@@ -97,6 +98,7 @@ async fn add_comment(
     State(state): State<AppState>,
     Json(payload): Json<AddCommentRequest>,
 ) -> Result<Json<String>, (StatusCode, String)> {
+    trace!("Add comment");
     state
         .db
         .insert_comment(
@@ -108,7 +110,7 @@ async fn add_comment(
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    Ok(Json("Pin added successfully.".to_string()))
+    Ok(Json("Comment added successfully.".to_string()))
 }
 
 async fn get_comments(
@@ -164,6 +166,7 @@ async fn get_pin(
     State(state): State<AppState>,
     Path(id): Path<i32>,
 ) -> Result<Json<PinResponse>, (StatusCode, String)> {
+    println!("xd1");
     let pin = state
         .db
         .get_pin_by_id(id)

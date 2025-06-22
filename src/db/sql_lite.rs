@@ -52,7 +52,7 @@ impl SqliteDb {
                 description TEXT NOT NULL,
                 x REAL NOT NULL CHECK(x BETWEEN -180.0 AND 180.0),
                 y REAL NOT NULL CHECK(y BETWEEN -90.0 AND 90.0),
-                comments_count REAL DEFAULT 0
+                comments_count INTEGER DEFAULT 0
             );",
         )
         .execute(pool)
@@ -146,6 +146,8 @@ impl TouristDb for SqliteDb {
             VALUES (?, ?, ?, ?)
         "#;
 
+        trace!("Inserting comment.");
+
         sqlx::query(query)
             .bind(pin_id)
             .bind(date)
@@ -164,7 +166,7 @@ impl TouristDb for SqliteDb {
             WHERE pin_id = ?
             ORDER BY id ASC
         "#;
-
+        trace!("Fetching commments for id {}", pin_id);
         let comments = sqlx::query_as::<_, Comment>(query)
             .bind(pin_id)
             .fetch_all(&self.pool)
