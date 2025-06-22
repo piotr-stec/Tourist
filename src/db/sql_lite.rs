@@ -141,13 +141,13 @@ impl TouristDb for SqliteDb {
         author: String,
         content: String,
     ) -> Result<(), Error> {
-        let query = r#"
-            INSERT INTO comments (pin_id, date, author, content)
-            VALUES (?, ?, ?, ?)
-        "#;
+        // Dodaj komentarz
+        let insert_query = r#"
+        INSERT INTO comments (pin_id, date, author, content)
+        VALUES (?, ?, ?, ?)
+    "#;
 
-
-        sqlx::query(query)
+        sqlx::query(insert_query)
             .bind(pin_id)
             .bind(date)
             .bind(author)
@@ -155,9 +155,19 @@ impl TouristDb for SqliteDb {
             .execute(&self.pool)
             .await?;
 
+        let update_query = r#"
+        UPDATE pins
+        SET comments_count = comments_count + 1
+        WHERE id = ?
+    "#;
+
+        sqlx::query(update_query)
+            .bind(pin_id)
+            .execute(&self.pool)
+            .await?;
+
         Ok(())
     }
-
 
     async fn get_pin_comments(&self, pin_id: i32) -> Result<Vec<Comment>, Error> {
         let query = r#"
